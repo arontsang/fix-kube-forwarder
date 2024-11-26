@@ -4,3 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+async-executor = "1.13.1"
+glommio = "0.9.0"
+futures-lite = "1.13.0"
+reinterpret = "0.2.1"
+ringbuf = "0.4.7"
