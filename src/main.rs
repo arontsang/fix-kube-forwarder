@@ -1,21 +1,24 @@
+mod kube;
 
 use futures_lite::FutureExt;
 use glommio::net::{TcpListener, TcpStream};
-use glommio::{GlommioError, LocalExecutor};
+use glommio::LocalExecutor;
 use reinterpret::reinterpret_mut_slice;
 use std::io::{Error, Result};
+use std::mem::MaybeUninit;
 use std::str;
 use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use twoway::find_bytes;
+use crate::kube::KubeQuerier;
 
-
-const FIX_CHECKSUM_TAG: &[u8; 4] = b"\x0110=";
+const FIX_CHECKSUM_TAG_PREAMBLE: &[u8; 4] = b"\x0110=";
 
 async fn main_async() -> Result<()> {
     let ex = async_executor::LocalExecutor::new();
 
     let accept_client_task = async {
         let listener = TcpListener::bind("0.0.0.0:10000")?;
+        println!("Listening on {}", listener.local_addr()?);
         loop {
             let Ok(mut client) = listener.accept().await else { break; };
             ex.spawn(async move {
@@ -51,13 +54,13 @@ async fn handle_client(client: &mut TcpStream) {
             };
             let packet = read_buffer.as_slice();
 
-            let Some(index) = find_bytes(packet, FIX_CHECKSUM_TAG) else { continue };
+            let Some(index) = find_bytes(packet, FIX_CHECKSUM_TAG_PREAMBLE) else { continue };
             let index_end_msg = {
-                let tail = &packet[index..][size_of_val(FIX_CHECKSUM_TAG)..];
+                let tail = &packet[index..][size_of_val(FIX_CHECKSUM_TAG_PREAMBLE)..];
                 tail.iter().position(|&x| x == 0x01)
             };
             let Some(index_end_msg) = index_end_msg else { continue };
-            let index_end_msg = index_end_msg + index + size_of_val(FIX_CHECKSUM_TAG) + 1;
+            let index_end_msg = index_end_msg + index + size_of_val(FIX_CHECKSUM_TAG_PREAMBLE) + 1;
 
             let log_on_message = &packet[0..index_end_msg];
             let target_comp_id = {
@@ -70,11 +73,12 @@ async fn handle_client(client: &mut TcpStream) {
                 comp_id
             };
 
-            let Ok(mut fix_acceptor) = get_proxy_target(target_comp_id).await else { break; };
+            let Some(mut fix_acceptor) = get_proxy_target(target_comp_id).await else { break; };
 
             async fn copy_stream<TRead: AsyncRead + Unpin, TWrite: AsyncWrite + Unpin>(mut source: TRead, mut target: TWrite) {
-                let mut buffer = [0u8; 1024 * 8];
-                let buffer = &mut buffer;
+                let mut buffer = MaybeUninit::<[u8; 1024 * 8]>::uninit();
+                let buffer = unsafe { buffer.assume_init_mut() };
+
                 loop {
                     let Ok(read_size) = source.read(buffer).await else { break };
                     if read_size == 0 { break; }
@@ -94,7 +98,8 @@ async fn handle_client(client: &mut TcpStream) {
             let copy_to_acceptor = copy_stream(client_read, acceptor_write);
             let copy_from_acceptor = copy_stream(acceptor_read, client_write);
 
-            copy_from_acceptor.or(copy_to_acceptor).await
+            copy_from_acceptor.or(copy_to_acceptor).await;
+            break;
         };
         Ok(())
     };
@@ -102,8 +107,9 @@ async fn handle_client(client: &mut TcpStream) {
     work.unwrap_or_default()
 }
 
-async fn get_proxy_target(_target_comp_id: &str) -> std::result::Result<TcpStream, GlommioError<()>> {
-    TcpStream::connect("172.20.8.3:9880").await
+async fn get_proxy_target(target_comp_id: &str) -> Option<TcpStream> {
+    let kube_client = KubeQuerier::new();
+    kube_client.get_proxy_target(target_comp_id).await
 }
 
 fn main() -> Result<()> {
