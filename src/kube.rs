@@ -61,7 +61,7 @@ impl KubeQuerier {
 
         let bar = bar.unwrap().await.unwrap();
 
-        let endpoint = format!("{},{}", bar.0, bar.1);
+        let endpoint = format!("{}:{}", bar.0, bar.1);
         println!("Connecting to endpoint {}", endpoint);
         let Ok(ret) = TcpStream::connect(endpoint).await else { return None };
         Some(ret)
