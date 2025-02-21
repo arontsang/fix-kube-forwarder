@@ -16,7 +16,10 @@ RUN set -eux; \
         s390x)   rustArch='s390x-unknown-linux-gnu'         ;; \
         *) echo >&2 "unsupported architecture: ${dpkgArch}"; exit 1 ;; \
     esac; \
-    cargo build --release --target-dir /dist --target $rustArch
+    cargo build --release --target $rustArch && \
+    mkdir /dist && \
+    mv ./target/release/$rustArch/fix-kube-forwarder /dist
 
 FROM --platform=$TARGETPLATFORM debian AS final
 COPY --from=cross /dist /opt/fix-proxy
+CMD ["/opt/fix-proxy/fix-kube-forwarder"]
