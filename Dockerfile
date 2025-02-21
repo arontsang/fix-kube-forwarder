@@ -7,6 +7,7 @@ RUN /tmp/install-prerequisites.sh
 COPY / /src
 WORKDIR /src
 
+RUN cargo fetch
 RUN set -eux; \
     case "${TARGETARCH}" in \
         amd64)   rustArch='x86_64-unknown-linux-gnu'        ;; \

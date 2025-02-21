@@ -73,7 +73,10 @@ async fn handle_client(client: &mut TcpStream) {
                 comp_id
             };
 
-            let Some(mut fix_acceptor) = get_proxy_target(target_comp_id).await else { break; };
+            let Some(mut fix_acceptor) = get_proxy_target(target_comp_id).await else {
+                println!("disconnected");
+                break;
+            };
 
             async fn copy_stream<TRead: AsyncRead + Unpin, TWrite: AsyncWrite + Unpin>(mut source: TRead, mut target: TWrite) {
                 let mut buffer = MaybeUninit::<[u8; 1024 * 8]>::uninit();
@@ -89,8 +92,10 @@ async fn handle_client(client: &mut TcpStream) {
                     }
                 }
             }
-            
+
+            println!("sending login");
             fix_acceptor.write(packet).await.expect("TODO: panic message");
+            println!("login sent");
 
             let (client_read, client_write) = client.split();
             let (acceptor_read, acceptor_write) = fix_acceptor.split();
