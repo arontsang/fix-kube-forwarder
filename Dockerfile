@@ -18,7 +18,7 @@ RUN set -eux; \
     esac; \
     cargo build --release --target $rustArch && \
     mkdir /dist && \
-    mv ./target/release/$rustArch/fix-kube-forwarder /dist
+    mv ./target/$rustArch/release/fix-kube-forwarder /dist
 
 FROM --platform=$TARGETPLATFORM debian AS final
 COPY --from=cross /dist /opt/fix-proxy
