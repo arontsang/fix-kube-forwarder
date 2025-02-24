@@ -1,3 +1,4 @@
+use std::net::{IpAddr, SocketAddr};
 use anyhow::anyhow;
 use glommio::net::TcpStream;
 use k8s_openapi::api::core::v1::Service;
@@ -32,7 +33,7 @@ impl KubeQuerier {
             let client = Client::try_default().await?;
             let services: Api<Service> = Api::all(client);
 
-            let filter = format!("compId={}", target_comp_id);
+            let filter = format!("fix.targetCompId={}", target_comp_id);
             let list_params = ListParams::default().labels(filter.as_str());
             let query = services.list(&list_params).await?;
 
@@ -55,13 +56,13 @@ impl KubeQuerier {
 
 
         let _guard = self.runtime.enter();
-        let bar = self.runtime.spawn(async move {
+        let (cluster_ip, port) = self.runtime.spawn(async move {
             query_kube(comp_id)
-        }).await;
+        }).await.unwrap().await.unwrap();
 
-        let bar = bar.unwrap().await.unwrap();
+        let cluster_ip = IpAddr::from_str(cluster_ip.as_str()).unwrap();
+        let endpoint = SocketAddr::new(cluster_ip, port as u16);
 
-        let endpoint = format!("{}:{}", bar.0, bar.1);
         println!("Connecting to endpoint {}", endpoint);
         let Ok(ret) = TcpStream::connect(endpoint).await else { return None };
         Some(ret)

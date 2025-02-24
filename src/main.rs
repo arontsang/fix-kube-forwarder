@@ -94,7 +94,7 @@ async fn handle_client(client: &mut TcpStream) {
             }
 
             println!("sending login");
-            fix_acceptor.write(packet).await.expect("TODO: panic message");
+            fix_acceptor.write(packet).await.unwrap();
             println!("login sent");
 
             let (client_read, client_write) = client.split();
