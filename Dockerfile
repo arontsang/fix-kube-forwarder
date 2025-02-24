@@ -21,6 +21,6 @@ RUN set -eux; \
     mkdir /dist && \
     mv ./target/$rustArch/release/fix-kube-forwarder /dist
 
-FROM --platform=$TARGETPLATFORM debian AS final
+FROM --platform=$TARGETPLATFORM debian:12-slim AS final
 COPY --from=cross /dist /opt/fix-proxy
 CMD ["/opt/fix-proxy/fix-kube-forwarder"]
