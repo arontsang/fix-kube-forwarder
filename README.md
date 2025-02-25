@@ -9,3 +9,7 @@ and be connected to, without complicated network configuration.
 Routing is done by labeling Kubernetes Services with the label `fix.targetCompId`. FIX 
 coming into the cluster will be scanned for `TargetCompId` and matched to the correct 
 Service. We then proxy the TCP connection to the service.
+
+## Example Deployment
+
+You can see it action by deploying the kustomize manifests from ./manifests/
