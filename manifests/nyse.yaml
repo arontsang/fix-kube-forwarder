@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nyse
+  labels:
+    app: nyse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nyse
+  template:
+    metadata:
+      labels:
+        app: nyse
+        exchange: nyse
+    spec:
+      containers:
+      - name: backend
+        image: felipewind/exchange-back-end:1.0
+        ports:
+        - containerPort: 8090
+        - containerPort: 9880
+        env:
+          - name: QUARKUS_DATASOURCE_JDBC_URL
+            value: jdbc:postgresql://postgres:5432/postgres?currentSchema=exchange
+          - name: QUARKUS_DATASOURCE_USERNAME
+            value: postgres
+          - name: QUARKUS_DATASOURCE_PASSWORD
+            value: postgres
+          - name: QUICKFIX
+            value: |
+              [default],
+              [session],
+              BeginString=FIX.4.4,
+              SenderCompID=EXEC,
+              TargetCompID=BANZAI,
+              ConnectionType=acceptor,
+              StartTime=00:00:00,
+              EndTime=00:00:00,
+              SocketAcceptPort=9880,
+              ScreenLogShowHeartBeats=Y,
+              JdbcStoreMessagesTableName=messages,
+              JdbcStoreSessionsTableName=sessions,
+              JdbcLogHeartBeats=Y,
+              JdbcLogIncomingTable=messages_log_incoming,
+              JdbcLogOutgoingTable=messages_log_outgoing,
+              JdbcLogEventTable=event_log,
+              JdbcSessionIdDefaultPropertyValue=not_null,
+              AllowedRemoteAddresses=0.0.0.0/0
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 10m
+          limits:
+            memory: 512Mi
+            cpu: 1000m
+      - name: frontend
+        image: arontsang/exchange-front-end:latest
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            memory: 16Mi
+            cpu: 10m
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: nyse
+  labels:
+    exchange: nyse
+    fix.targetCompId: EXEC
+spec:
+  ports:
+    - protocol: TCP
+      port: 9880
+      targetPort: 9880
+      name: fix
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      name: ui
+    - protocol: TCP
+      port: 8090
+      targetPort: 8090
+      name: backend
+  selector:
+    app: nyse
+  type: LoadBalancer

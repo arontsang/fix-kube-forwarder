@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: proxy
+  labels:
+    app: proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: proxy
+  template:
+    metadata:
+      labels:
+        app: proxy
+    spec:
+      containers:
+      - name: backend
+        image: ghcr.io/arontsang/fix-kube-forwarder:main
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 10000
+        resources:
+          requests:
+            memory: 64Mi
+            cpu: 10m
+          limits:
+            memory: 64Mi
+            cpu: 1000m
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: proxy
+spec:
+  ports:
+    - port: 10000
+      targetPort: 10000
+      name: ui
+  selector:
+    app: proxy
+  type: LoadBalancer

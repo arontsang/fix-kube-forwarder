@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+spec:
+  serviceName: "postgres"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres
+        env:
+          - name: POSTGRES_PASSWORD
+            value: postgres
+          - name: POSTGRES_DB
+            value: postgres
+          - name: POSTGRES_USER
+            value: postgres
+        ports:
+        - containerPort: 5432
+          name: postgres
+        volumeMounts:
+          - name: init-sql
+            mountPath: /docker-entrypoint-initdb.d/
+        resources:
+          limits:
+            memory: 128Mi
+            cpu: 50m
+      volumes:
+        - name: init-sql
+          configMap:
+            name: init-sql
+
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: postgres
+  labels: 
+    app: postgres
+spec:
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  selector:
+    app: postgres
+  type: ClusterIP            
