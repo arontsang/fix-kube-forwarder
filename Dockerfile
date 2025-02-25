@@ -4,11 +4,11 @@ COPY install-prerequisites.sh /tmp/install-prerequisites.sh
 RUN /tmp/install-prerequisites.sh
 
 
-COPY / /src
+COPY / /src/
 WORKDIR /src
 
-RUN cargo fetch
-RUN set -eux; \
+RUN --mount=type=cache,target=/src/target  \
+    set -eux; \
     case "${TARGETARCH}" in \
         amd64)   rustArch='x86_64-unknown-linux-gnu'        ;; \
         arm)     rustArch='armv7-unknown-linux-gnueabihf'   ;; \
